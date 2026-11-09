@@ -1,0 +1,138 @@
+// ==============================================================================
+// Prisma Schema: YolaBot Multi-Platform AI Assistant
+// Reference: docs/02-technical/DATABASE-ERD.md
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String?   @unique @db.VarChar(255)
+  password_hash String?   @db.VarChar(255)
+  display_name  String    @default("Pengguna") @db.VarChar(100)
+  role          String    @default("user") @db.VarChar(20)
+  status        String    @default("unverified") @db.VarChar(20)
+  preferences   Json      @default("{\"theme\":\"system\",\"language\":\"id\"}")
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+
+  // Relasi
+  identities    Identity[]
+  conversations Conversation[]
+  usage_records UsageRecord[]
+  audit_logs    AuditLog[]     @relation("UserAuditLogs")
+
+  @@map("users")
+}
+
+model Identity {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  provider    String   @db.VarChar(30) // "web" | "telegram"
+  external_id String   @db.VarChar(100) // email | telegram_id
+  metadata    Json?    @default("{}")
+  linked_at   DateTime @default(now()) @db.Timestamptz(6)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relasi
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, external_id], name: "provider_external_id_unique")
+  @@index([provider, external_id], name: "idx_identities_provider_external")
+  @@map("identities")
+}
+
+model Conversation {
+  id              String    @id @default(uuid()) @db.Uuid
+  user_id         String    @db.Uuid
+  title           String    @default("Percakapan Baru") @db.VarChar(150)
+  source_platform String    @default("web") @db.VarChar(20) // "web" | "telegram"
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+
+  // Relasi
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([user_id, updated_at(sort: Desc)], name: "idx_conversations_user_updated")
+  @@map("conversations")
+}
+
+model Message {
+  id                String   @id @default(uuid()) @db.Uuid
+  conversation_id   String   @db.Uuid
+  role              String   @db.VarChar(20) // "user" | "assistant" | "system"
+  content           String   @db.Text
+  status            String   @default("complete") @db.VarChar(20) // "complete" | "incomplete" | "failed"
+  model             String?  @db.VarChar(100)
+  prompt_version_id String?  @db.Uuid
+  token_in          Int      @default(0)
+  token_out         Int      @default(0)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relasi
+  conversation   Conversation   @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  prompt_version PromptVersion? @relation(fields: [prompt_version_id], references: [id], onDelete: SetNull)
+
+  @@index([conversation_id, created_at(sort: Asc)], name: "idx_messages_conversation_created")
+  @@map("messages")
+}
+
+model UsageRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  period_date    DateTime @db.Date
+  total_tokens   Int      @default(0)
+  total_requests Int      @default(0)
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, period_date], name: "usage_user_period_unique")
+  @@index([user_id, period_date], name: "idx_usage_user_date")
+  @@map("usage_records")
+}
+
+model PromptVersion {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @default("main_system") @db.VarChar(50)
+  content    String   @db.Text
+  version    Int      @default(1)
+  is_active  Boolean  @default(false)
+  created_by String?  @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relasi
+  messages Message[]
+
+  @@index([name, is_active], name: "idx_prompt_versions_active")
+  @@map("prompt_versions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actor_id    String?  @db.Uuid
+  action      String   @db.VarChar(50)
+  target_type String?  @db.VarChar(50)
+  target_id   String?  @db.Uuid
+  details     Json?    @default("{}")
+  ip_address  String?  @db.VarChar(45)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relasi
+  actor User? @relation("UserAuditLogs", fields: [actor_id], references: [id], onDelete: SetNull)
+
+  @@index([actor_id, created_at(sort: Desc)], name: "idx_audit_logs_actor_created")
+  @@map("audit_logs")
+}
+
