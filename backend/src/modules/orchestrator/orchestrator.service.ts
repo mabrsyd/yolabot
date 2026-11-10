@@ -2,10 +2,8 @@ import { env } from '../../config/env.js';
 import { prisma } from '../../shared/database/prisma.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { AIProviderAdapter } from '../ai-providers/adapter.interface.js';
+import { createAdapter } from '../ai-providers/adapter-factory.js';
 import { FallbackRouter } from '../ai-providers/fallback-router.js';
-import { GeminiAdapter } from '../ai-providers/gemini-adapter.js';
-import { MockAIProviderAdapter } from '../ai-providers/mock-adapter.js';
-import { OpenAIAdapter } from '../ai-providers/openai-adapter.js';
 import { ContextBuilder } from './context-builder.js';
 import { PromptManager } from './prompt-manager.js';
 
@@ -22,15 +20,8 @@ export class OrchestratorService {
   private readonly activeGenerations: Map<string, AbortController> = new Map();
 
   private constructor() {
-    const primary =
-      env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 0
-        ? new GeminiAdapter(env.GEMINI_API_KEY, env.GEMINI_DEFAULT_MODEL)
-        : new MockAIProviderAdapter();
-
-    const secondary =
-      env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 0
-        ? new OpenAIAdapter(env.OPENAI_API_KEY, env.OPENAI_DEFAULT_MODEL)
-        : new MockAIProviderAdapter();
+    const primary = createAdapter(env.AI_PRIMARY_PROVIDER);
+    const secondary = createAdapter(env.AI_FALLBACK_PROVIDER);
 
     this.primaryAdapter = new FallbackRouter(primary, secondary);
   }

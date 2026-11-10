@@ -3,8 +3,8 @@ import { env } from '../../config/env.js';
 import { prisma } from '../../shared/database/prisma.js';
 import { redis } from '../../shared/redis/redis.js';
 import { AIProviderAdapter } from '../ai-providers/adapter.interface.js';
-import { GeminiAdapter } from '../ai-providers/gemini-adapter.js';
-import { MockAIProviderAdapter } from '../ai-providers/mock-adapter.js';
+import { createAdapter } from '../ai-providers/adapter-factory.js';
+import { FallbackRouter } from '../ai-providers/fallback-router.js';
 import { ContextBuilder } from '../orchestrator/context-builder.js';
 
 export class TelegramService {
@@ -13,11 +13,9 @@ export class TelegramService {
   private aiAdapter: AIProviderAdapter;
 
   private constructor() {
-    if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 0) {
-      this.aiAdapter = new GeminiAdapter(env.GEMINI_API_KEY, env.GEMINI_DEFAULT_MODEL);
-    } else {
-      this.aiAdapter = new MockAIProviderAdapter();
-    }
+    const primary = createAdapter(env.AI_PRIMARY_PROVIDER);
+    const secondary = createAdapter(env.AI_FALLBACK_PROVIDER);
+    this.aiAdapter = new FallbackRouter(primary, secondary);
 
     if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_BOT_TOKEN.trim().length > 0) {
       this.bot = new Bot(env.TELEGRAM_BOT_TOKEN);

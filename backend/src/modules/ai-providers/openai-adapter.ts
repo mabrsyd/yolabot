@@ -7,7 +7,7 @@ import {
 } from './adapter.interface.js';
 
 export class OpenAIAdapter implements AIProviderAdapter {
-  public readonly providerId = 'openai';
+  public readonly providerId: string;
   public readonly modelName: string;
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -16,10 +16,12 @@ export class OpenAIAdapter implements AIProviderAdapter {
     apiKey: string,
     modelName = 'gpt-4o-mini',
     baseUrl = 'https://api.openai.com/v1',
+    providerId = 'openai',
   ) {
     this.apiKey = apiKey;
     this.modelName = modelName;
     this.baseUrl = baseUrl;
+    this.providerId = providerId;
   }
 
   async generate(params: GenerationParams): Promise<GenerationResult> {
@@ -41,8 +43,8 @@ export class OpenAIAdapter implements AIProviderAdapter {
         const errorText = await response.text();
         throw new AppError(
           response.status === 429 ? 429 : 502,
-          'OPENAI_API_ERROR',
-          `OpenAI API error (${response.status}): ${errorText}`,
+          `${this.providerId.toUpperCase()}_API_ERROR`,
+          `${this.providerId.toUpperCase()} API error (${response.status}): ${errorText}`,
         );
       }
 
@@ -70,8 +72,8 @@ export class OpenAIAdapter implements AIProviderAdapter {
       if (err instanceof AppError) throw err;
       throw new AppError(
         502,
-        'OPENAI_CONNECTION_ERROR',
-        `Koneksi ke OpenAI gagal: ${err instanceof Error ? err.message : String(err)}`,
+        `${this.providerId.toUpperCase()}_CONNECTION_ERROR`,
+        `Koneksi ke ${this.providerId} gagal: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -94,8 +96,8 @@ export class OpenAIAdapter implements AIProviderAdapter {
     } catch (err) {
       throw new AppError(
         502,
-        'OPENAI_CONNECTION_ERROR',
-        `Gagal memulai stream ke OpenAI: ${err instanceof Error ? err.message : String(err)}`,
+        `${this.providerId.toUpperCase()}_CONNECTION_ERROR`,
+        `Gagal memulai stream ke ${this.providerId}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
 
@@ -103,13 +105,13 @@ export class OpenAIAdapter implements AIProviderAdapter {
       const errorText = await response.text();
       throw new AppError(
         response.status === 429 ? 429 : 502,
-        'OPENAI_API_ERROR',
-        `OpenAI streaming error (${response.status}): ${errorText}`,
+        `${this.providerId.toUpperCase()}_API_ERROR`,
+        `${this.providerId.toUpperCase()} streaming error (${response.status}): ${errorText}`,
       );
     }
 
     if (!response.body) {
-      throw new AppError(502, 'OPENAI_STREAM_ERROR', 'OpenAI response body is null');
+      throw new AppError(502, `${this.providerId.toUpperCase()}_STREAM_ERROR`, `${this.providerId} response body is null`);
     }
 
     const reader = response.body.getReader();

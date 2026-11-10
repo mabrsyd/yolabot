@@ -15,13 +15,18 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1, 'REDIS_URL wajib diisi untuk in-memory cache & rate limiter'),
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET wajib minimal 32 karakter demi keamanan kriptografi'),
 
-  AI_PRIMARY_PROVIDER: z.enum(['gemini', 'openai']).default('gemini'),
+  AI_PRIMARY_PROVIDER: z.enum(['gemini', 'openai', 'groq', 'mock']).default('groq'),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_DEFAULT_MODEL: z.string().default('gemini-1.5-flash'),
 
-  AI_FALLBACK_PROVIDER: z.enum(['openai', 'gemini']).default('openai'),
+  AI_FALLBACK_PROVIDER: z.enum(['gemini', 'openai', 'groq', 'mock']).default('gemini'),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_DEFAULT_MODEL: z.string().default('gpt-4o-mini'),
+  OPENAI_BASE_URL: z.string().url().default('https://api.openai.com/v1'),
+
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_DEFAULT_MODEL: z.string().default('openai/gpt-oss-120b'),
+  GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
